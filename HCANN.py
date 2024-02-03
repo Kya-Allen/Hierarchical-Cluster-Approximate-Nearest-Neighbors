@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.typing import ArrayLike, Any, NDArray
+from numpy.typing import ArrayLike, NDArray
 from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
 
