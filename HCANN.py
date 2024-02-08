@@ -37,12 +37,9 @@ class ClusterTree():
   '''
   def __init__(self):
     self.root = ClusterNode(None, None)
-    self.leaves = []
-    self.previous_set = []
+    self.leaves: list[ClusterNode] = []
+    self.previous_set: list[ClusterNode] = []
     return
-
-  leaves = []
-  previous_set: list[ClusterNode] = []
 
   def insert_clusters(self, centroids: NDArray, labels: NDArray):
     '''insert single stratum of HierarchicalKMeans from the bottom up, into the tree as ClusterNodes
@@ -61,19 +58,25 @@ class ClusterTree():
       set_leaves = True
       set_children = False
     current_set: list[ClusterNode] = []
-    self.root.children = []
+    self.root.children.clear()
     for centroid_index, centroid in enumerate(centroids):
       node = ClusterNode(centroid, self.root)
       self.root.children.append(node)
       if set_leaves: self.leaves.append(node)
-      elif set_children:
-        for i, j in zip(self.previous_set, labels):
-          if centroid_index == j:
-            i.parent = node
-            node.children.append(i)
+      elif set_children: self.__setting_children(labels, node, centroid_index)
       current_set.append(node)
     self.previous_set = current_set
     return
+  
+  def __setting_children(self, labels, node, centroid_index):
+    if len(self.previous_set) != len(labels): raise Exception("labels should be the same size as previous set")
+    for i, j, in zip(self.previous_set, labels):
+      self.__set_child(node, i, j, centroid_index)
+  
+  def __set_child(self, node, lower_node, label, centroid_index):
+    if centroid_index == label:
+      lower_node.parent = node 
+      node.children.append(lower_node)
 
   def nn_traversal(self, query: ArrayLike):
     '''Retrieve full stratum path for query point. Datapoints beloging to the final cluster in the list are the approximate N Nearest Neighbors
