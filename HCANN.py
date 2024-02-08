@@ -17,13 +17,14 @@ class ClusterNode():
   Attributes
   ----------
   children : array-like
-    list of clusters in the lower-adjacent stratum belonging to this cluster.  
+    list of clusters in the lower-adjacent stratum belonging to this cluster.
   '''
   def __init__(self, centroid, parent):
     self.centroid = centroid
     self.parent = parent
+    self.children = []
     return
-  
+
   children = []
 
 class ClusterTree():
@@ -36,11 +37,13 @@ class ClusterTree():
   '''
   def __init__(self):
     self.root = ClusterNode(None, None)
+    self.leaves = []
+    self.previous_set = []
     return
 
   leaves = []
-  previous_set = []
-  
+  previous_set: list[ClusterNode] = []
+
   def insert_clusters(self, centroids: NDArray, labels: NDArray):
     '''insert single stratum of HierarchicalKMeans from the bottom up, into the tree as ClusterNodes
 
@@ -54,21 +57,24 @@ class ClusterTree():
     '''
     set_leaves: bool = False
     set_children: bool = True
-    if self.leaves == []: set_leaves = True
-    else: set_children = False
+    if self.leaves == []:
+      set_leaves = True
+      set_children = False
+    current_set: list[ClusterNode] = []
     self.root.children = []
     for centroid_index, centroid in enumerate(centroids):
       node = ClusterNode(centroid, self.root)
       self.root.children.append(node)
-      self.previous_set.append(node)
       if set_leaves: self.leaves.append(node)
-      if set_children:
+      elif set_children:
         for i, j in zip(self.previous_set, labels):
           if centroid_index == j:
             i.parent = node
             node.children.append(i)
+      current_set.append(node)
+    self.previous_set = current_set
     return
-  
+
   def nn_traversal(self, query: ArrayLike):
     '''Retrieve full stratum path for query point. Datapoints beloging to the final cluster in the list are the approximate N Nearest Neighbors
 
@@ -80,17 +86,21 @@ class ClusterTree():
     Returns
     -------
     indecies : ArrayLike
-      list containing an index of the nearest cluster at each strata 
+      list containing an index of the nearest cluster at each strata
     '''
     query: NDArray = np.array(query)
+    query.reshape(-1, 1)
     clusters = self.root.children
     indecies = []
+    whiledex = 1
     while clusters[0].children != []:
+      print(whiledex)
+      whiledex += 1
       neighborhood = NearestNeighbors(n_neighbors=1)
-      neighborhood.fit([x.centroids for x in clusters])
-      nearest = neighborhood.kneighbors([query], return_distance=False)
+      neighborhood.fit([x.centroid for x in clusters])
+      nearest = neighborhood.kneighbors(np.array([query]).reshape(-1, 1), return_distance=False)
       clusters = clusters[nearest[0]].children
-      indecies.append(nearest[0]) 
+      indecies.append(nearest[0])
     return indecies
 
 class HierarchicalKMeans():
@@ -104,7 +114,7 @@ class HierarchicalKMeans():
     Each additional strata will cluster the centroids of the previous stratum
 
   The following parameters will be uniformly applied to the sci-kit learn KMeans clustering model that fits each strata.
-  The documentation for these parameters are copied directly. 
+  The documentation for these parameters are copied directly.
 
   init : {'k-means++', 'random'}, callable or array-like of shape \
             (n_clusters, n_features), default='k-means++'
@@ -191,7 +201,8 @@ class HierarchicalKMeans():
       Allowing for Approximate Nearest Neighbors search.
       returning the full strata path.
   '''
-  def __init__(self, n_strata=2, init='k-means++', n_init='warn', max_iter='300', tol='0.0001', verbose=0, random_state=None, copy_x=True, algorithm='lloyd'):
+
+  def __init__(self, n_strata=2, init='k-means++', n_init='warn', max_iter=300, tol=0.0001, verbose=0, random_state=None, copy_x=True, algorithm='lloyd'):
     self.n_strata = n_strata
     self.init = init
     self.n_init = n_init
@@ -201,20 +212,19 @@ class HierarchicalKMeans():
     self.random_state = random_state
     self.copy_x = copy_x
     self.algorithm = algorithm
-
-  strata: dict = {}
-  tree: ClusterTree = ClusterTree() 
+    self.strata: dict = {}
+    self.tree: ClusterTree = ClusterTree()
 
   def fit_stratum(self, stratum_data, n_clusters) -> KMeans:
     '''Compute K-Means clustering for a single stratum of the hierarchical clustering'''
-    clustering: KMeans = KMeans(n_clusters, self.init, self.n_init, self.max_iter, self.tol, self.verbose, self.random_state, self.copy_x, self.algorithm)
+    clustering: KMeans = KMeans(n_clusters=n_clusters, init=self.init, n_init=self.n_init, max_iter=self.max_iter, tol=self.tol, verbose=self.verbose, random_state=self.random_state, copy_x=self.copy_x, algorithm=self.algorithm)
     clustering.fit(stratum_data)
     return clustering
-  
+
   def determine_k(self, n: int, max_comparisons: int) -> int:
     '''determine and compute number of clusters for a given stratum based on max_comparisons'''
     return round(n / max_comparisons)
-  
+
   def build_stratum(self, peak_comparisons, max_comparisons, cluster_space, tier):
     '''Determine K-Means clustering for a single stratum of the hierarchical clustering'''
     num_clusters: int = self.determine_k(peak_comparisons, max_comparisons)
@@ -244,7 +254,7 @@ class HierarchicalKMeans():
       cluster_space = current_stratum.cluster_centers_
       self.tree.insert_clusters(cluster_space, current_stratum.labels_)
     return
-  
+
   def predict(self, data: ArrayLike) -> list:
     '''Compute the full strata path of cluster membership for a new dataset
 
