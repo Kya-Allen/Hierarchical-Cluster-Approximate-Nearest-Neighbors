@@ -98,18 +98,6 @@ class ClusterTree():
     at_bottom = False
 
     return self.__nn_strata(clusters, indecies, query, at_bottom)
-
-
-    #while clusters[0].children != []:
-     # print(whiledex)
-      #whiledex += 1
-      #neighborhood = NearestNeighbors(n_neighbors=1)
-      #neighborhood.fit(np.array([x.centroid for x in clusters]).reshape(-1, 1))
-      #nearest = neighborhood.kneighbors(np.array([query]).reshape(-1, 1), return_distance=False)
-      #print(f'here: {nearest}')
-      #clusters = clusters[nearest[0][0]].children
-      #indecies.append(nearest[0][0])
-    #return indecies
   
   def __nn_strata(self, clusters, indecies, query, at_bottom):
     neighborhood = NearestNeighbors(n_neighbors=1)

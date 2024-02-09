@@ -35,13 +35,6 @@ class ClusterTreeTestCase(unit.TestCase):
         correct_result = [0, 1]
         actual_result = self.my_tree.nn_traversal([query_point]) 
         self.assertEqual(correct_result, actual_result)
-
-
-        
-
-#my_tree.insert_clusters(level0_centroids, level0_labels)
-#my_tree.insert_clusters(level1_centroids, level1_labels)
-#my_tree.insert_clusters(level2_centroids, level2_labels)
         
 if __name__ == '__main__':
     unit.main()
