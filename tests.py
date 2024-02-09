@@ -35,6 +35,45 @@ class ClusterTreeTestCase(unit.TestCase):
         correct_result = [0, 1]
         actual_result = self.my_tree.nn_traversal([query_point]) 
         self.assertEqual(correct_result, actual_result)
+
+class HierarchicalKMeansTestCase(unit.TestCase):
+    def setUp(self):
+        self.upper_cluster_1 = np.random.normal(200, 50, 20)
+        self.upper_cluster_2 = np.random.normal(50, 50, 20)
+        np.set_printoptions(suppress=True)
+        self.upper_data = np.concatenate((self.upper_cluster_1, self.upper_cluster_2))
+        self.full_data = np.array([])
+        for datum in self.upper_data:
+            x = np.random.normal(datum, 5, 20)
+            self.full_data = np.concatenate((self.full_data, x))
+        self.model = hc.HierarchicalKMeans()
+        self.model.fit(self.full_data.reshape(-1, 1), 3)
+
+    def test_strata(self):
+        self.assertEqual(5, len(self.model.strata))
+        correct_higest_n_clusters = 3
+        self.assertEqual(correct_higest_n_clusters, self.model.strata['t4'].n_clusters)
+
+    def test_prediction(self):
+        print(self.model.predict([[125]]))
+        query_classification = self.model.predict([[125]])
+        test_list = [
+            self.model.tree.root.children[query_classification[0][0]].centroid[0],
+            self.model.tree.root.children[query_classification[0][0]].children[query_classification[0][1]].centroid[0],
+            self.model.tree.root.children[query_classification[0][0]].children[query_classification[0][1]].children[query_classification[0][2]].centroid[0],
+            self.model.tree.root.children[query_classification[0][0]].children[query_classification[0][1]].children[query_classification[0][2]].children[query_classification[0][3]].centroid[0],
+            self.model.tree.root.children[query_classification[0][0]].children[query_classification[0][1]].children[query_classification[0][2]].children[query_classification[0][3]].children[query_classification[0][4]].centroid[0],
+        ]
+
+        # Test that each subsequent cluster centroid gets closer and closer to the query point. This should suffice to show that the Hierarchical clustering is correct
+        proximity_path = []
+        for index, centroid in enumerate(test_list):
+            if (index + 1) >= len(test_list): break
+            first_diff = abs(125 - centroid)
+            next_diff = abs(125 - test_list[index+1]) 
+            proximity_path.append(first_diff - next_diff)
+        for improvement in proximity_path:
+            self.assertGreater(improvement, 0)
         
 if __name__ == '__main__':
     unit.main()
